@@ -1,0 +1,54 @@
+{% extends '@EasyAdmin/page/login_minimal.html.twig' %}
+
+{% block body_class 'page-login pkce-flow' %}
+
+{% block page_title %}
+    {{ page_title is defined ? page_title|raw : (ea is defined ? ea.dashboardTitle|raw : '') }}
+{% endblock %}
+
+{% block wrapper_wrapper %}
+    {% set page_title = block('page_title') %}
+
+    {% block flash_messages %}
+        {{ include('@EasyAdmin/flash_messages.html.twig') }}
+    {% endblock %}
+
+    <body data-token-url="{{ token_url }}" data-authorization-code="{{ authorization_code }}" data-code-verifier="{{ code_verifier }}">
+    <div class="login-wrapper pkce-container">
+        <header class="main-header mb-4">
+            <div id="header-logo">
+                {% block header_logo %}
+                    {% if page_title %}
+                        <div class="logo {{ page_title|length > 14 ? 'logo-long' }}">
+                            {{ page_title|raw }}
+                        </div>
+                    {% endif %}
+                {% endblock %}
+            </div>
+        </header>
+
+        <section class="content text-center">
+            <div class="spinner-border text-primary mb-3 pkce-spinner" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <h4>Completing Authentication</h4>
+            <p class="text-muted">Finalizing secure login process...</p>
+
+            <div class="progress mb-3">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="progressBar"></div>
+            </div>
+
+            <div class="alert alert-danger pkce-error-message" id="errorMessage"></div>
+
+            <div class="mt-4">
+                <small class="text-muted">This should complete automatically in a moment.</small>
+            </div>
+        </section>
+    </div>
+    </body>
+
+    <!-- External files -->
+    <link rel="stylesheet" href="{{ asset('css/pkce-flow.css') }}">
+    <script src="{{ asset('js/pkce-token-exchange.js') }}"></script>
+{% endblock %}
