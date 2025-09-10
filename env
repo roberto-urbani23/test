@@ -1,0 +1,8 @@
+GENERATE_OTP_API_HOST=https://api.mockfly.dev/mocks/cef63536-5a95-423f-b051-56218532d6da/guest/generateOTP
+
+# OTP Verification API endpoint
+VERIFY_OTP_API_HOST=https://api.mockfly.dev/mocks/cef63536-5a95-423f-b051-56218532d6da/guest/verifyInvalidate
+ENABLE_CUSTOM_OTP=true
+
+# OTP Channel identifier
+CHANNEL_OTP=your-channel-identifier

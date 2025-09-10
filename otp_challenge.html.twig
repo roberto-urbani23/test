@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <meta name="generator" content="EasyAdmin">
+    <title>Verifica OTP</title>
+    <link rel="stylesheet" href="{{ asset('css/otp-challenge.css') }}">
+</head>
+<body class="login-page">
+<div class="login-wrapper">
+    <header class="main-header">
+        <div class="logo">
+            {{ page_title|raw }}
+        </div>
+    </header>
+
+    <section class="content">
+        <div class="login-box">
+            <div class="login-logo">
+                <h2>Verifica OTP</h2>
+                <p class="login-description">
+                    Ti abbiamo inviato un codice OTP via email.<br>
+                    Inserisci il codice per completare l'accesso.
+                </p>
+                {% if attempts_left <= 2 %}
+                    <div class="attempts-warning">
+                        <strong>⚠️ Attenzione: {{ attempts_left }} {{ attempts_left == 1 ? 'tentativo rimanente' : 'tentativi rimanenti' }}</strong>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="login-box-body">
+                <form method="POST" action="{{ path('otp_verify') }}" class="otp-form" id="otp-form" novalidate>
+                    {% for flash_message in app.flashes('danger') %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ flash_message }}
+                        </div>
+                    {% endfor %}
+
+                    {% for flash_message in app.flashes('error') %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ flash_message }}
+                        </div>
+                    {% endfor %}
+
+                    <div class="form-group">
+                        <input type="text"
+                               name="form[otp_code]"
+                               id="form_otp_code"
+                               class="otp-input"
+                               placeholder="Inserisci il codice OTP"
+                               autocomplete="off"
+                               required>
+                        <div class="otp-help">
+                            <small>Inserisci il codice ricevuto via email</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary btn-lg btn-block">
+                            Verifica OTP
+                        </button>
+                    </div>
+
+                    <input type="hidden" name="form[_token]" value="{{ csrf_token('form') }}">
+                </form>
+
+                <div class="login-help">
+                    <p><small>Non hai ricevuto l'email? <a href="{{ path('app_login') }}">Riprova il login</a></small></p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script src="{{ asset('js/otp-challenge.js') }}"></script>
+</body>
+</html>
