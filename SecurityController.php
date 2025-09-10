@@ -375,165 +375,98 @@ class SecurityController extends AbstractController
     }
 
     /**
-     * Pagina inserimento OTP
-     * @Route("/otp/challenge", name="otp_challenge")
+     * Pagina inserimento OTP e verifica
+     * @Route("/otp/challenge", name="otp_challenge", methods={"GET", "POST"})
      */
-    public function otpChallenge(SessionInterface $session): Response
-    {
-        if ($this->getUser()) {
-            return $this->redirect('/');
-        }
-
-        $otpData = $session->get('otp_data');
-        if (!$otpData || (time() - $otpData['timestamp']) > 600) { // 10 minuti timeout
-            $session->remove('otp_data');
-            $this->addFlash('danger', 'Sessione OTP scaduta, ripetere il login');
-            return $this->redirectToRoute('app_login');
-        }
-
-        $form = $this->createFormBuilder()
-            ->add('otp_code', TextType::class, [
-                'required' => true,
-                'label' => false,
-                'attr' => [
-                    'placeholder' => 'Inserisci il codice OTP',
-                    'maxlength' => 10,
-                    'class' => 'otp-input'
-                ],
-                'row_attr' => [
-                    'class' => 'form-widget'
-                ],
-                'constraints' => [
-                    new NotBlank(message: 'Il codice OTP è obbligatorio'),
-                ],
-            ])
-            ->add('submit', SubmitType::class, [
-                'label' => 'Verifica OTP',
-                'attr' => [
-                    'class' => 'btn btn-primary btn-lg btn-block'
-                ],
-                'row_attr' => [
-                    'class' => 'submit'
-                ]
-            ])
-            ->getForm();
-
-        $attemptsLeft = 3 - $otpData['attempts'];
-
-        return $this->render('security/otp_challenge.html.twig', [
-            'form' => $form->createView(),
-            'page_title' => '<img src="/images/logo.png">',
-            'attempts_left' => $attemptsLeft
-        ]);
-    }
-
     /**
-     * Verifica OTP
-     * @Route("/otp/verify", name="otp_verify", methods={"POST"})
+     * Pagina inserimento OTP e verifica
+     * @Route("/otp/challenge", name="otp_challenge", methods={"GET", "POST"})
      */
-    public function otpVerify(
-        Request $request,
+    public function otpChallenge(
         SessionInterface $session,
+        Request $request,
         EntityManagerInterface $entityManager,
         TokenStorageInterface $tokenStorage
     ): Response {
-        // If user is already authenticated, redirect
         if ($this->getUser()) {
             return $this->redirect('/');
         }
 
-        // Check if OTP data exists in session
         $otpData = $session->get('otp_data');
-        if (!$otpData) {
-            $this->logger->warning('OTP verify accessed without OTP data in session');
-            $this->addFlash('danger', 'Sessione non valida. Ripetere il login');
-            return $this->redirectToRoute('app_login');
-        }
-
-        // Check if OTP session is expired
-        if ((time() - $otpData['timestamp']) > 600) {
+        if (!$otpData || (time() - $otpData['timestamp']) > 600) {
             $session->remove('otp_data');
-            $this->logger->warning('OTP session expired during verify', ['user_id' => $otpData['user_id'] ?? 'unknown']);
             $this->addFlash('danger', 'Sessione OTP scaduta, ripetere il login');
             return $this->redirectToRoute('app_login');
         }
 
-        // Get form data safely
-        $otpCode = '';
-        try {
-            $formData = $request->request->all();
-            $this->logger->debug('OTP verify form data received', ['form_keys' => array_keys($formData)]);
+        $errors = [];
 
-            if (isset($formData['form']) && is_array($formData['form']) && isset($formData['form']['otp_code'])) {
-                $otpCode = trim((string) $formData['form']['otp_code']);
-            }
-        } catch (\Exception $e) {
-            $this->logger->error('Error parsing OTP form data', ['error' => $e->getMessage()]);
-            $this->addFlash('danger', 'Errore nel processare i dati');
-            return $this->redirectToRoute('otp_challenge');
-        }
-
-        if (empty($otpCode)) {
-            $this->addFlash('danger', 'Inserisci il codice OTP');
-            return $this->redirectToRoute('otp_challenge');
-        }
-
-        $user = $entityManager->getRepository(User::class)->find($otpData['user_id']);
-
-        if (!$user) {
-            $session->remove('otp_data');
-            $this->logger->error('User not found during OTP verify', ['user_id' => $otpData['user_id']]);
-            $this->addFlash('danger', 'Errore durante la verifica, ripetere il login');
-            return $this->redirectToRoute('app_login');
-        }
-
-        $this->logger->info('Attempting OTP verification', [
-            'user_id' => $user->getId(),
-            'attempt' => $otpData['attempts'] + 1
-        ]);
-
-        $verifyResult = $this->verifyOtp($user, $otpCode);
-
-        if ($verifyResult) {
-            // OTP correct, complete authentication
-            $token = new UsernamePasswordToken($user, 'main', $user->getRoles());
-            $tokenStorage->setToken($token);
-            $session->set('_security_main', serialize($token));
-            $session->migrate(true);
-
-            $targetPath = $otpData['target_path'] ?? '/';
-            $session->remove('otp_data');
-
-            $this->logger->info('User authenticated via OTP', [
-                'user_id' => $user->getId(),
-                'redirect_url' => $targetPath
-            ]);
-
-            $this->addFlash('success', 'Accesso completato con successo');
-            return $this->redirect($targetPath);
-        } else {
-            // OTP incorrect, increment attempts
-            $otpData['attempts']++;
-
-            if ($otpData['attempts'] >= 3) {
-                // Too many attempts, back to login
-                $session->remove('otp_data');
-                $this->logger->warning('Too many OTP attempts', ['user_id' => $user->getId()]);
-                $this->addFlash('danger', 'Troppi tentativi errati. Ripetere il login');
-                return $this->redirectToRoute('app_login');
+        // Handle POST request (form submission)
+        if ($request->isMethod('POST')) {
+            // Validate CSRF token
+            if (!$this->isCsrfTokenValid('otp_form', $request->request->get('_token'))) {
+                $errors[] = 'Token di sicurezza non valido';
             } else {
-                // Save updated attempts
-                $session->set('otp_data', $otpData);
-                $attemptsLeft = 3 - $otpData['attempts'];
-                return $this->redirectToRoute('otp_challenge');
+                $otpCode = trim($request->request->get('otp_code', ''));
+
+                if (empty($otpCode)) {
+                    $errors[] = 'Inserisci il codice OTP';
+                } else {
+                    $user = $entityManager->getRepository(User::class)->find($otpData['user_id']);
+
+                    if (!$user) {
+                        $session->remove('otp_data');
+                        $this->addFlash('danger', 'Errore durante la verifica, ripetere il login');
+                        return $this->redirectToRoute('app_login');
+                    }
+
+                    $verifyResult = $this->verifyOtp($user, $otpCode);
+
+                    if ($verifyResult['success']) {
+                        // Authentication successful
+                        $token = new UsernamePasswordToken($user, 'main', $user->getRoles());
+                        $tokenStorage->setToken($token);
+                        $session->set('_security_main', serialize($token));
+
+                        $targetPath = $otpData['target_path'] ?? '/';
+                        $session->remove('otp_data');
+
+                        $this->addFlash('success', 'Accesso completato con successo');
+                        return $this->redirect($targetPath);
+                    } else {
+                        // OTP verification failed
+                        $otpData['attempts']++;
+
+                        if ($otpData['attempts'] >= 3) {
+                            $session->remove('otp_data');
+                            $this->addFlash('danger', 'Troppi tentativi errati. Ripetere il login');
+                            return $this->redirectToRoute('app_login');
+                        } else {
+                            $session->set('otp_data', $otpData);
+                            $errors[] = $verifyResult['message'] ?? 'Codice OTP non valido';
+                        }
+                    }
+                }
             }
         }
+
+        // Handle GET request (show form) or POST with errors
+        $attemptsLeft = 3 - $otpData['attempts'];
+
+        return $this->render('security/otp_challenge.html.twig', [
+            'page_title' => '<img src="/images/logo.png">',
+            'attempts_left' => $attemptsLeft,
+            'errors' => $errors
+        ]);
     }
+
+// Remove the handleOtpSubmission method completely
+
 
     /**
      * Verifica OTP tramite API
      */
-    private function verifyOtp(User $user, string $otpCode): bool
+    private function verifyOtp(User $user, string $otpCode): array
     {
         $verifyOtpApiHost = $_ENV['VERIFY_OTP_API_HOST'];
         $channelOtp = $_ENV['CHANNEL_OTP'];
@@ -570,23 +503,22 @@ class SecurityController extends AbstractController
                     'result_code' => $responseBody['resultCode'] ?? 'N/A',
                     'result_message' => $responseBody['resultMessage'] ?? 'N/A'
                 ]);
-                return true;
+                return ['success' => true];
             } else {
-                $resultMessage = $responseBody['resultMessage'] ?? 'Errore sconosciuto';
-                $this->addFlash('danger', $resultMessage);
+                $resultMessage = $responseBody['response']['resultMessage'] ?? 'Errore sconosciuto';
                 $this->logger->warning('Verifica OTP fallita', [
                     'status_code' => $statusCode,
                     'user_id' => $user->getId(),
                     'is_4xx' => $statusCode >= 400 && $statusCode < 500
                 ]);
-                return false;
+                return ['success' => false, 'message' => $resultMessage];
             }
         } catch (\Exception $e) {
             $this->logger->error('Errore durante chiamata API verifica OTP', [
                 'user_id' => $user->getId(),
                 'error' => $e->getMessage()
             ]);
-            return false;
+            return ['success' => false, 'message' => 'Errore di connessione durante la verifica OTP'];
         }
     }
 
