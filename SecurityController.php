@@ -48,6 +48,7 @@ class SecurityController extends AbstractController
     private $logger;
     private $httpClient;
 
+
     public function __construct(
         FirewallMap $firewallMap,
         LoggerInterface $logger,
@@ -55,7 +56,18 @@ class SecurityController extends AbstractController
     ) {
         $this->firewallMap = $firewallMap;
         $this->logger = $logger;
-        $this->httpClient = $httpClient;
+
+        // Configure HTTP client with default headers for RSM API calls
+        $rsmHostAlias = $_ENV['OTP_CUSTOM_RMS_HOST_ALIAS'] ?? '';
+        $rsmCaller = $_ENV['OTP_CUSTOM_RMS_CALLER'] ?? '';
+
+        $this->httpClient = $httpClient->withOptions([
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'RSMHostAlias' => $rsmHostAlias,
+                'RSMCaller' => $rsmCaller
+            ]
+        ]);
     }
     /**
      * @Route("/login", name="app_login")
@@ -326,10 +338,7 @@ class SecurityController extends AbstractController
 
         try {
             $response = $this->httpClient->request('POST', $generateOtpApiHost, [
-                'json' => $requestBody,
-                'headers' => [
-                    'Content-Type' => 'application/json'
-                ]
+                'json' => $requestBody
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -542,10 +551,7 @@ class SecurityController extends AbstractController
 
         try {
             $response = $this->httpClient->request('POST', $verifyOtpApiHost, [
-                'json' => $requestBody,
-                'headers' => [
-                    'Content-Type' => 'application/json'
-                ]
+                'json' => $requestBody
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -580,6 +586,7 @@ class SecurityController extends AbstractController
             return false;
         }
     }
+
 
     /**
      * @Route("/logout", name="app_logout")
