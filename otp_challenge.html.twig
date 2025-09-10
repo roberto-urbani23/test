@@ -46,6 +46,12 @@
                         </div>
                     {% endfor %}
 
+                    {% for flash_message in app.flashes('otp_error_message') %}
+                        <div class="otp-error-message">
+                            {{ flash_message }}
+                        </div>
+                    {% endfor %}
+
                     <div class="form-group">
                         <input type="text"
                                name="form[otp_code]"
@@ -72,6 +78,7 @@
                     <p><small>Non hai ricevuto l'email? <a href="{{ path('app_login') }}">Riprova il login</a></small></p>
                 </div>
             </div>
+
         </div>
     </section>
 </div>
