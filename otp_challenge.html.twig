@@ -33,29 +33,39 @@
             </div>
 
             <div class="login-box-body">
-                <form method="POST" action="{{ path('otp_verify') }}" class="otp-form" id="otp-form" novalidate>
-                    {% for flash_message in app.flashes('danger') %}
+                {# Show controller errors first #}
+                {% if errors is defined and errors|length > 0 %}
+                    {% for error in errors %}
                         <div class="alert alert-danger" role="alert">
-                            {{ flash_message }}
+                            {{ error }}
                         </div>
                     {% endfor %}
+                {% endif %}
 
-                    {% for flash_message in app.flashes('error') %}
-                        <div class="alert alert-danger" role="alert">
-                            {{ flash_message }}
-                        </div>
-                    {% endfor %}
+                {# Show flash messages #}
+                {% for flash_message in app.flashes('danger') %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ flash_message }}
+                    </div>
+                {% endfor %}
 
-                    {% for flash_message in app.flashes('otp_error_message') %}
-                        <div class="otp-error-message">
-                            {{ flash_message }}
-                        </div>
-                    {% endfor %}
+                {% for flash_message in app.flashes('error') %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ flash_message }}
+                    </div>
+                {% endfor %}
 
+                {% for flash_message in app.flashes('success') %}
+                    <div class="alert alert-success" role="alert">
+                        {{ flash_message }}
+                    </div>
+                {% endfor %}
+
+                <form method="POST" action="{{ path('otp_challenge') }}" class="otp-form" id="otp-form" novalidate>
                     <div class="form-group">
                         <input type="text"
-                               name="form[otp_code]"
-                               id="form_otp_code"
+                               name="otp_code"
+                               id="otp_code"
                                class="otp-input"
                                placeholder="Inserisci il codice OTP"
                                autocomplete="off"
@@ -71,14 +81,13 @@
                         </button>
                     </div>
 
-                    <input type="hidden" name="form[_token]" value="{{ csrf_token('form') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('otp_form') }}">
                 </form>
 
                 <div class="login-help">
                     <p><small>Non hai ricevuto l'email? <a href="{{ path('app_login') }}">Riprova il login</a></small></p>
                 </div>
             </div>
-
         </div>
     </section>
 </div>
