@@ -357,6 +357,8 @@ class SecurityController extends AbstractController
                 ]);
                 return true;
             } else {
+                $resultMessage =  $responseBody['resultMessage']?? 'Errore sconosciuto';
+                $this->addFlash('danger', $resultMessage);
                 $this->logger->warning('Generazione OTP fallita - status code non 200', [
                     'status_code' => $statusCode,
                     'user_id' => $user->getId()
@@ -523,7 +525,6 @@ class SecurityController extends AbstractController
                 // Save updated attempts
                 $session->set('otp_data', $otpData);
                 $attemptsLeft = 3 - $otpData['attempts'];
-                $this->addFlash('danger', "Codice OTP errato. Tentativi rimanenti: $attemptsLeft");
                 return $this->redirectToRoute('otp_challenge');
             }
         }
@@ -571,6 +572,8 @@ class SecurityController extends AbstractController
                 ]);
                 return true;
             } else {
+                $resultMessage = $responseBody['resultMessage'] ?? 'Errore sconosciuto';
+                $this->addFlash('danger', $resultMessage);
                 $this->logger->warning('Verifica OTP fallita', [
                     'status_code' => $statusCode,
                     'user_id' => $user->getId(),
